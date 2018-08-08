@@ -86,7 +86,7 @@ app.get('/state/:name/:detailopt', function(req, res){
 //SERVER SET UP
 
 app.listen(8080, function(){
-	console.log('– Server listening on port 80');
+	console.log('– Server listening on port 8080');
 });
 
 process.on('SIGINT', function(){
