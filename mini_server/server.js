@@ -85,7 +85,7 @@ app.get('/state/:name/:detailopt', function(req, res){
 
 //SERVER SET UP
 
-app.listen(80, function(){
+app.listen(8080, function(){
 	console.log('– Server listening on port 80');
 });
 
