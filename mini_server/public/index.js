@@ -44,11 +44,11 @@ $(document).ready(function(){
 
 
 			///////////////////////////
-			//FORM/EVENT HANDLERS ///////////
+			//FORM/EVENT HANDLERS /////
 			///////////////////////////
 
-			$('#redistrictForm').submit(redistrict);
 			$('#detail-option').on('change', toggleDetail);
+			$('#bound-option').on('change', toggleBorder);
 
 			//adds or removes census block detailing on boundaries
 			function toggleDetail(event){
@@ -78,10 +78,7 @@ $(document).ready(function(){
 				event.preventDefault();
 			}
 
-			//gets new districting borders and changes layers on map
-			function redistrict(event){
-				event.preventDefault();
-
+			function toggleBorder(event){
 				$('#loading-gif').css('display', 'block');
 
 				var center_coords = map.getView().getCenter();
@@ -93,19 +90,29 @@ $(document).ready(function(){
 				//loading.setPosition(center_coords);
 				map.addOverlay(loading);
 				map.renderSync();
-				console.log(center_coords);
 
-				var number = $('#number-input').val();
-				var state = $('#state-input').val();
-				var censusopt = $('#census-option').val();
+				var border_option = $('#bound-option').prop('checked');
 
-				$.post('/redistrict', {number: number, state: state, detailopt: detailopt}, function(res){
+				strokestyle = boundlayer.getStyle().getStroke();
 
-					drawDistricts(res);
-					//map.removeOverlay(loading);
+				if (border_option) {
+					strokestyle.setWidth(3);
+					strokestyle.setColor('black');
+					boundlayer.getSource().refresh();//updates layers with style changes
+
 					$('#loading-gif').css('display', 'none');
 
-				})
+				}
+				else {
+					strokestyle.setWidth(0);
+					strokestyle.setColor([0,0,0,0]);
+					boundlayer.getSource().refresh();
+
+					$('#loading-gif').css('display', 'none');
+
+				}
+				
+				event.preventDefault();
 			}
 
 
