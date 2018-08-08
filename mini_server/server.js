@@ -85,8 +85,8 @@ app.get('/state/:name/:detailopt', function(req, res){
 
 //SERVER SET UP
 
-app.listen(8080, 'https://ec2-18-222-6-118.us-east-2.compute.amazonaws.com', function(){
-	console.log('– Server listening on port 8080');
+app.listen(80, function(){
+	console.log('– Server listening on port 80');
 });
 
 process.on('SIGINT', function(){
