@@ -44,25 +44,16 @@ $(document).ready(function(){
 
 
 			///////////////////////////
-			//FORM/EVENT HANDLERS /////
+			//FORM/EVENT HANDLERS ///////////
 			///////////////////////////
 
 			$('#detail-option').on('change', toggleDetail);
 			$('#bound-option').on('change', toggleBorder);
 
+
 			//adds or removes census block detailing on boundaries
 			function toggleDetail(event){
-				$('#loading-gif').css('display', 'block');
-
-				var center_coords = map.getView().getCenter();
-				var loading = new ol.Overlay({
-  					element: document.getElementById('loading-gif'),
-  					position: center_coords,
-  					positioning: 'center-center'
-				});
-				//loading.setPosition(center_coords);
-				map.addOverlay(loading);
-				map.renderSync();
+				showLoadAnimation();
 
 				var detail_option = $('#detail-option').prop('checked');
 				console.log(detail_option);
@@ -71,25 +62,14 @@ $(document).ready(function(){
 				$.get('/state/'+state+'/'+detail_option,  function(res){
 					
 					drawDistricts(res);
-
-					$('#loading-gif').css('display', 'none');
+					hideLoadAnimation();
 
 				});
 				event.preventDefault();
 			}
 
 			function toggleBorder(event){
-				$('#loading-gif').css('display', 'block');
-
-				var center_coords = map.getView().getCenter();
-				var loading = new ol.Overlay({
-  					element: document.getElementById('loading-gif'),
-  					position: center_coords,
-  					positioning: 'center-center'
-				});
-				//loading.setPosition(center_coords);
-				map.addOverlay(loading);
-				map.renderSync();
+				showLoadAnimation();
 
 				var border_option = $('#bound-option').prop('checked');
 
@@ -98,20 +78,16 @@ $(document).ready(function(){
 				if (border_option) {
 					strokestyle.setWidth(3);
 					strokestyle.setColor('black');
-					boundlayer.getSource().refresh();//updates layers with style changes
-
-					$('#loading-gif').css('display', 'none');
 
 				}
 				else {
 					strokestyle.setWidth(0);
 					strokestyle.setColor([0,0,0,0]);
-					boundlayer.getSource().refresh();
-
-					$('#loading-gif').css('display', 'none');
-
 				}
-				
+
+				boundlayer.getSource().refresh();//updates layers with style changes
+				hideLoadanimation();
+
 				event.preventDefault();
 			}
 
@@ -120,7 +96,9 @@ $(document).ready(function(){
 				var code = $(this).prop("code");
 
 				$('#state-input').val(code);
+				showLoadAnimation();
 				panToState(code);
+				hideLoadAnimation();
 			});
 
 
@@ -180,21 +158,21 @@ $(document).ready(function(){
 
 			//Forms the layers and their geometries but doesn't draw layers. 'blocks' is census block boundaries
 			function formLayers(type, coords, center, districts, blocks) {
-				var geometry;
+				var bound_geometry;
 				var boundfeature = new ol.Feature({});
 
 				if (type == 'Polygon'){
-					geometry = new ol.geom.Polygon(coords);
+					bound_geometry = new ol.geom.Polygon(coords);
 				}
 
 				else if (type == 'MultiPolygon'){
-					var geometry = new ol.geom.MultiPolygon(coords);
+					bound_geometry = new ol.geom.MultiPolygon(coords);
 				}
 
-				geometry.transform('EPSG:4326', 'EPSG:3857');
-				boundfeature.setGeometry(geometry);
+				bound_geometry.transform('EPSG:4326', 'EPSG:3857');
+				boundfeature.setGeometry(bound_geometry);
 
-				districtLayers = drawDistrictLayers(districts, geometry, blocks);
+				districtLayers = drawDistrictLayers(districts, bound_geometry, blocks);
 
 				boundlayer = new ol.layer.Vector({
 				    source: new ol.source.Vector({
@@ -233,42 +211,6 @@ $(document).ready(function(){
 		        	})
 		      	});
 
-			}
-
-			//clips polygon vector to stay within the outline of the state
-			function clipPolygon(vector, geometry){
-				//https://gist.github.com/elemoine/b95420de2db3707f2e89
-					vector.on('precompose', function(event) {
-				        var ctx = event.context;
-          				var vecCtx = event.vectorContext;
-				        ctx.save();
-
-				        var fillStyle = new ol.style.Style({fill: new ol.style.Fill({color: [0, 0, 0, 0]})});
-
-
-				        vecCtx.setStyle(fillStyle);
-				        vecCtx.drawGeometry(geometry);
-				        
-				        ctx.clip();
-				        
-				      });
-
-				    vector.on('postcompose', function(event) {
-				        var ctx = event.context;
-				        ctx.restore();
-				      });
-			}
-
-
-			function dimension(list){
-				console.log(list[0][0]);
-				console.log(typeof(list[0][0]));
-				if (typeof(list[0][0]) == "number") {
-					return 2
-				}
-				else {
-					return 3
-				}
 			}
 
 			//Forms vector drawings of district layers, doesn't add to map yet
@@ -313,18 +255,19 @@ $(document).ready(function(){
 					layers.push(vector);
 				}
 
-				//census boundary vectors
+				//census block vectors to clip district vectors
 
 				for (var j in Object.keys(blocks)){
 					console.log(blocks[j]);
 
-					var geom = new ol.geom.MultiPolygon([blocks[j]]);
-					geom.transform('EPSG:4326', 'EPSG:3857');
+					var blocks_geom = new ol.geom.MultiPolygon([blocks[j]]);
+					blocks_geom.transform('EPSG:4326', 'EPSG:3857');
+
 
 					var vector = new ol.layer.Vector({
 			    	source: new ol.source.Vector({
 			        	features: [new ol.Feature({
-			        		geometry: geom
+			        		geometry: blocks_geom
 			        	})]
 				    }),
 				   	style: new ol.style.Style({
@@ -333,6 +276,21 @@ $(document).ready(function(){
 				   		})
 				   	}),
 					   	opacity: 0.5
+					});
+
+					vector.on('precompose', function(event){
+						var ctx = event.context;
+						ctx.save();
+						ctx.globalCompositeOperation = 'destination-out'
+
+					});
+
+					vector.on('precompose', function(event){
+						var ctx = event.context;
+						ctx.globalCompositeOperation = 'source-over'
+
+						ctx.restore();
+
 					});
 
 					//https://gist.github.com/elemoine/b95420de2db3707f2e89
@@ -346,6 +304,67 @@ $(document).ready(function(){
 			}
 
 
+///////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////
+////////////////////////////      HELPERS      ////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////
+
+			function showLoadAnimation(){
+				$('#loading-gif').css('display', 'block');
+
+				var center_coords = map.getView().getCenter();
+				var loading = new ol.Overlay({
+  					element: document.getElementById('loading-gif'),
+  					position: center_coords,
+  					positioning: 'center-center'
+				});
+				//loading.setPosition(center_coords);
+				map.addOverlay(loading);
+				map.renderSync();
+			};
+
+			function hideLoadAnimation(){
+				$('#loading-gif').css('display', 'none');
+
+			}
+
+			//clips polygon vector layer (vector) to stay within the outline of the state (geometry)
+			function clipPolygon(vector, geometry){
+				//https://gist.github.com/elemoine/b95420de2db3707f2e89
+					vector.on('precompose', function(event) {
+				        var ctx = event.context;
+          				var vecCtx = event.vectorContext;
+				        ctx.save();
+
+				        var fillStyle = new ol.style.Style({fill: new ol.style.Fill({color: [0, 0, 0, 0]})});
+
+
+				        vecCtx.setStyle(fillStyle);
+				        vecCtx.drawGeometry(geometry);
+				        
+				        ctx.clip();
+				        
+				      });
+
+				    vector.on('postcompose', function(event) {
+				        var ctx = event.context;
+				        ctx.restore();
+				      });
+			}
+
+
+			function dimension(list){
+				console.log(list[0][0]);
+				console.log(typeof(list[0][0]));
+				if (typeof(list[0][0]) == "number") {
+					return 2
+				}
+				else {
+					return 3
+				}
+			}
+
 			//https://stackoverflow.com/questions/1484506/random-color-generator
 			function getRandomColor() {
   				var letters = '0123456789ABCDEF';
@@ -353,6 +372,7 @@ $(document).ready(function(){
   				for (var i = 0; i < 6; i++) {
     				color += letters[Math.floor(Math.random() * 16)];
   				}
+  				color += ''
   				return color;
 			}
 
