@@ -86,7 +86,7 @@ $(document).ready(function(){
 				}
 
 				boundlayer.getSource().refresh();//updates layers with style changes
-				hideLoadanimation();
+				hideLoadAnimation();
 
 				event.preventDefault();
 			}
