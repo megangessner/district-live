@@ -86,7 +86,7 @@ $(document).ready(function(){
 				}
 
 				boundlayer.getSource().refresh();//updates layers with style changes
-				hideLoadAnimation();
+				hideLoadanimation();
 
 				event.preventDefault();
 			}
@@ -263,8 +263,23 @@ $(document).ready(function(){
 					var blocks_geom = new ol.geom.MultiPolygon([blocks[j]]);
 					blocks_geom.transform('EPSG:4326', 'EPSG:3857');
 
+					///This is to correct an alpha problem when overlaying census blocks over districts. we clip the district with the block clipVector using xor 
+					///for globalCompositeOperation, then draw another layer colorVector with the actual block. Inefficient but must be done to achieve desired result.
+					var clipVector = new ol.layer.Vector({
+			    	source: new ol.source.Vector({
+			        	features: [new ol.Feature({
+			        		geometry: blocks_geom
+			        	})]
+				    }),
+				   	style: new ol.style.Style({
+				   		fill: new ol.style.Fill({
+				   			color: colors[j]
+				   		})
+				   	}),
+					   	opacity: 1
+					});
 
-					var vector = new ol.layer.Vector({
+					var colorVector = new ol.layer.Vector({
 			    	source: new ol.source.Vector({
 			        	features: [new ol.Feature({
 			        		geometry: blocks_geom
@@ -278,25 +293,28 @@ $(document).ready(function(){
 					   	opacity: 0.5
 					});
 
-					vector.on('precompose', function(event){
+
+					clipVector.on('precompose', function(event){
 						var ctx = event.context;
 						ctx.save();
-						ctx.globalCompositeOperation = 'destination-out'
+
+						ctx.globalCompositeOperation = 'xor';
 
 					});
 
-					vector.on('precompose', function(event){
+					clipVector.on('postcompose', function(event){
 						var ctx = event.context;
-						ctx.globalCompositeOperation = 'source-over'
+						ctx.globalCompositeOperation = 'source-over';
 
 						ctx.restore();
 
 					});
 
 					//https://gist.github.com/elemoine/b95420de2db3707f2e89
-					clipPolygon(vector, geometry);
+					//clipPolygon(vector, geometry);
 
-					layers.push(vector);
+					layers.push(clipVector);
+					layers.push(colorVector);
 
 				}
 
