@@ -49,7 +49,7 @@ app.get('/state/:name/:detailopt', function(req, res){
 	console.log(detail_opt);
 	var census_blocks, poly_file;
 
-	fs.readFile('../binary_data/district_polygons/polygons_'+req.params.name, 'utf8', function(err, data){
+	fs.readFile('../web_data/district_polygons/polygons_'+req.params.name, 'utf8', function(err, data){
 
 		if (err){
 			console.log('There does not already exist a file with the polygons for this districting of this state');
@@ -60,7 +60,7 @@ app.get('/state/:name/:detailopt', function(req, res){
 		}
 		else {
 			if (detail_opt == 'true'){
-				raw_blocks = fs.readFileSync('../binary_data/census_polygons/boundary_blocks_'+req.params.name).toString('utf-8');
+				raw_blocks = fs.readFileSync('../web_data/census_polygons/boundary_blocks_'+req.params.name+'.json');
 				census_blocks = JSON.parse(raw_blocks);
 
 			}
